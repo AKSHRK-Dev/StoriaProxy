@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Stolia Contributors
+ * Copyright (C) 2026 Velocity Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,7 +72,8 @@ public final class PlaceholderRegistry implements StoliaPlaceholders {
         p -> LocalDateTime.now().getDayOfWeek().getDisplayName(TextStyle.FULL, locale(p)));
     this.builtin("uptime", "proxy uptime, e.g. 2d 3h 4m", p -> formatDuration(Duration.ofMillis(ManagementFactory.getRuntimeMXBean().getUptime())));
     this.builtin("uptime_seconds", "proxy uptime in seconds", p -> String.valueOf(ManagementFactory.getRuntimeMXBean().getUptime() / 1000L));
-    this.builtin("memory_used", "heap used (MB)", p -> String.valueOf((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) >> 20));
+    this.builtin("memory_used", "heap used (MB)", p ->
+        String.valueOf((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) >> 20));
     this.builtin("memory_max", "max heap (MB)", p -> String.valueOf(Runtime.getRuntime().maxMemory() >> 20));
     this.builtin("memory_free", "free heap (MB)", p -> String.valueOf((Runtime.getRuntime().maxMemory()
         - (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())) >> 20));
@@ -114,11 +115,13 @@ public final class PlaceholderRegistry implements StoliaPlaceholders {
     this.builtin("player_server", "player's current server", p -> server(p).map(c -> c.getServerInfo().getName()).orElse("-"));
     this.builtin("player_server_online", "players on the player's server", p ->
         server(p).map(c -> String.valueOf(c.getServer().getPlayersConnected().size())).orElse("0"));
-    this.builtin("player_server_max", "max players of the player's server", p -> server(p).map(c -> status.max(c.getServerInfo().getName())).orElse("0"));
+    this.builtin("player_server_max", "max players of the player's server", p ->
+        server(p).map(c -> status.max(c.getServerInfo().getName())).orElse("0"));
     this.builtin("player_server_motd", "MOTD of the player's server", p -> server(p).map(c -> status.motd(c.getServerInfo().getName())).orElse(""));
     this.builtin("player_locale", "player locale, e.g. ja_jp", p -> locale(p).toString().toLowerCase(Locale.ROOT));
     this.builtin("player_language", "player language name", p -> locale(p).getDisplayLanguage(locale(p)));
-    this.builtin("player_client_brand", "client brand, e.g. vanilla, fabric", p -> p == null || p.getClientBrand() == null ? "unknown" : p.getClientBrand());
+    this.builtin("player_client_brand", "client brand, e.g. vanilla, fabric", p ->
+        p == null || p.getClientBrand() == null ? "unknown" : p.getClientBrand());
     this.builtin("player_protocol", "protocol number", p -> p == null ? "0" : String.valueOf(p.getProtocolVersion().getProtocol()));
     this.builtin("player_version", "Minecraft version of the client", p -> p == null ? "" : p.getProtocolVersion().getMostRecentSupportedVersion());
     this.builtin("player_virtual_host", "host name the player connected with", p ->

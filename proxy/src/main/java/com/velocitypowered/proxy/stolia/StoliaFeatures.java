@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Stolia Contributors
+ * Copyright (C) 2026 Velocity Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -83,7 +83,8 @@ public final class StoliaFeatures {
       ]
       footer = [
         "",
-        "<gray>{player_server} <dark_gray>({player_server_online})</dark_gray> <dark_gray>·</dark_gray> ping <{player_ping_color}>{player_ping}ms</{player_ping_color}>",
+        "<gray>{player_server} <dark_gray>({player_server_online})</dark_gray> <dark_gray>·</dark_gray> \
+      ping <{player_ping_color}>{player_ping}ms</{player_ping_color}>",
         "<dark_gray>uptime {uptime}",
         ""
       ]
