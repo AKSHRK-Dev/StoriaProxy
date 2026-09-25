@@ -294,7 +294,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
 
     registerTranslations();
 
-    new com.velocitypowered.proxy.stolia.StoliaFeatures(this); // Stolia - placeholders, MOTD, tab list, messages
+    new com.velocitypowered.proxy.storia.StoriaFeatures(this); // Storia - placeholders, MOTD, tab list, messages
 
     for (ServerInfo cliServer : options.getServers()) {
       servers.register(cliServer);

@@ -1,4 +1,4 @@
-name: Build Stolia Proxy
+name: Build Storia Proxy
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -21,5 +21,5 @@ jobs:
     - name: Upload jar
       uses: actions/upload-artifact@v5
       with:
-        name: stolia-proxy
-        path: proxy/build/libs/stolia-proxy-*.jar
+        name: storia-proxy
+        path: proxy/build/libs/storia-proxy-*.jar

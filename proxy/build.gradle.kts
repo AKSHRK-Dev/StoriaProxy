@@ -20,14 +20,14 @@ tasks {
 
     jar {
         manifest {
-            attributes["Implementation-Title"] = "Stolia Proxy"
-            attributes["Implementation-Vendor"] = "Stolia (based on Velocity by Velocity Contributors)"
+            attributes["Implementation-Title"] = "Storia Proxy"
+            attributes["Implementation-Vendor"] = "Storia (based on Velocity by Velocity Contributors)"
             attributes["Multi-Release"] = "true"
         }
     }
 
     shadowJar {
-        archiveFileName.set("stolia-proxy-${project.version}.jar")
+        archiveFileName.set("storia-proxy-${project.version}.jar")
         filesMatching("META-INF/org/apache/logging/log4j/core/config/plugins/**") {
             duplicatesStrategy = DuplicatesStrategy.INCLUDE
         }

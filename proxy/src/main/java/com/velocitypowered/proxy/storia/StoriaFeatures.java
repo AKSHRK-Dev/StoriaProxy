@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.velocitypowered.proxy.stolia;
+package com.velocitypowered.proxy.storia;
 
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -33,7 +33,7 @@ import com.velocitypowered.api.proxy.server.ServerPing;
 import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.plugin.virtual.VelocityVirtualPlugin;
-import dev.stolia.proxy.api.StoliaPlaceholders;
+import dev.storia.proxy.api.StoriaPlaceholders;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -50,16 +50,16 @@ import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Stolia Proxy features built on the placeholders: server list MOTD, tab list header/footer,
- * join/leave/switch messages and the {@code /stoliaproxy} command. Configured in {@code stolia-proxy.toml}.
+ * Storia Proxy features built on the placeholders: server list MOTD, tab list header/footer,
+ * join/leave/switch messages and the {@code /storiaproxy} command. Configured in {@code storia-proxy.toml}.
  */
-public final class StoliaFeatures {
+public final class StoriaFeatures {
 
-  private static final Logger LOGGER = LogManager.getLogger(StoliaFeatures.class);
+  private static final Logger LOGGER = LogManager.getLogger(StoriaFeatures.class);
   private static final String DEFAULT_CONFIG = """
-      # Stolia Proxy settings. Text is MiniMessage (https://docs.advntr.dev/minimessage/format)
-      # with {placeholders}. Run /stoliaproxy placeholders in game or in the console to list them all
-      # with their current values, and /stoliaproxy parse <text> to try a line.
+      # Storia Proxy settings. Text is MiniMessage (https://docs.advntr.dev/minimessage/format)
+      # with {placeholders}. Run /storiaproxy placeholders in game or in the console to list them all
+      # with their current values, and /storiaproxy parse <text> to try a line.
 
       [motd]
       # Replaces the server list description (two lines).
@@ -119,12 +119,12 @@ public final class StoliaFeatures {
    *
    * @param server the proxy
    */
-  public StoliaFeatures(final VelocityServer server) {
+  public StoriaFeatures(final VelocityServer server) {
     this.server = server;
-    this.file = Path.of("stolia-proxy.toml");
+    this.file = Path.of("storia-proxy.toml");
     this.status = new ServerStatusCache(server);
     this.placeholders = new PlaceholderRegistry(server, this.status, this.loginTimes);
-    StoliaPlaceholders.Holder.set(this.placeholders);
+    StoriaPlaceholders.Holder.set(this.placeholders);
     this.settings = this.load();
     server.getEventManager().register(VelocityVirtualPlugin.INSTANCE, this);
     this.registerCommand();
@@ -154,7 +154,7 @@ public final class StoliaFeatures {
           config.getOrElse("messages.switch", ""),
           Math.max(2L, config.<Number>getOrElse("server-status.refresh-seconds", 10).longValue()));
     } catch (final RuntimeException ex) {
-      LOGGER.error("Could not read {}; keeping the previous Stolia Proxy settings", this.file, ex);
+      LOGGER.error("Could not read {}; keeping the previous Storia Proxy settings", this.file, ex);
       return this.settings != null ? this.settings : new Settings(true, List.of("{proxy_name}", "{online} online"), -1,
           false, 1000, List.of(), List.of(), "", "", "", 10);
     }
@@ -257,10 +257,10 @@ public final class StoliaFeatures {
   // ---- command ----------------------------------------------------------------------------------
 
   private void registerCommand() {
-    final LiteralArgumentBuilder<CommandSource> root = BrigadierCommand.literalArgumentBuilder("stoliaproxy")
-        .requires(source -> source.hasPermission("stoliaproxy.admin"))
+    final LiteralArgumentBuilder<CommandSource> root = BrigadierCommand.literalArgumentBuilder("storiaproxy")
+        .requires(source -> source.hasPermission("storiaproxy.admin"))
         .executes(ctx -> {
-          ctx.getSource().sendMessage(Component.text("/stoliaproxy placeholders | parse <text> | reload", NamedTextColor.YELLOW));
+          ctx.getSource().sendMessage(Component.text("/storiaproxy placeholders | parse <text> | reload", NamedTextColor.YELLOW));
           return 1;
         })
         .then(BrigadierCommand.literalArgumentBuilder("placeholders").executes(ctx -> {
@@ -287,7 +287,7 @@ public final class StoliaFeatures {
         .then(BrigadierCommand.literalArgumentBuilder("reload").executes(ctx -> {
           this.settings = this.load();
           this.schedule();
-          ctx.getSource().sendMessage(Component.text("Reloaded stolia-proxy.toml", NamedTextColor.GREEN));
+          ctx.getSource().sendMessage(Component.text("Reloaded storia-proxy.toml", NamedTextColor.GREEN));
           return 1;
         }));
     final BrigadierCommand command = new BrigadierCommand(root);

@@ -15,13 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.velocitypowered.proxy.stolia;
+package com.velocitypowered.proxy.storia;
 
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.proxy.VelocityServer;
-import dev.stolia.proxy.api.StoliaPlaceholders;
+import dev.storia.proxy.api.StoriaPlaceholders;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -43,7 +43,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * The built-in placeholders and the registry plugins add to.
  */
-public final class PlaceholderRegistry implements StoliaPlaceholders {
+public final class PlaceholderRegistry implements StoriaPlaceholders {
 
   private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
   private static final DateTimeFormatter TIME_SECONDS = DateTimeFormatter.ofPattern("HH:mm:ss");

@@ -5,7 +5,7 @@
  * reference the LICENSE file in the api top-level directory.
  */
 
-package dev.stolia.proxy.api;
+package dev.storia.proxy.api;
 
 import com.velocitypowered.api.proxy.Player;
 import java.util.Map;
@@ -16,30 +16,30 @@ import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Placeholders built into Stolia Proxy, usable in its MOTD, tab list and messages, and by plugins.
+ * Placeholders built into Storia Proxy, usable in its MOTD, tab list and messages, and by plugins.
  *
  * <p>A placeholder is written {@code {name}}. Built-in placeholders cover the proxy
  * ({@code {online}}, {@code {uptime}}, ...), each backend server ({@code {online_lobby}},
  * {@code {status_lobby}}, ...) and the viewing player ({@code {player}}, {@code {player_ping}}, ...);
- * {@code /stoliaproxy placeholders} lists them all with their current values.
+ * {@code /storiaproxy placeholders} lists them all with their current values.
  *
  * <p>Plugins can add their own:
  * <pre>{@code
- * StoliaPlaceholders.get().register("coins", player -> player == null ? "0" : coins(player));
- * StoliaPlaceholders.get().registerPrefix("team_", (player, arg) -> teamSize(arg));   // {team_red}
- * Component c = StoliaPlaceholders.get().render("<gold>{coins} coins</gold>", player);
+ * StoriaPlaceholders.get().register("coins", player -> player == null ? "0" : coins(player));
+ * StoriaPlaceholders.get().registerPrefix("team_", (player, arg) -> teamSize(arg));   // {team_red}
+ * Component c = StoriaPlaceholders.get().render("<gold>{coins} coins</gold>", player);
  * }</pre>
  */
-public interface StoliaPlaceholders {
+public interface StoriaPlaceholders {
 
   /**
-   * Returns the placeholder registry of the running Stolia Proxy.
+   * Returns the placeholder registry of the running Storia Proxy.
    *
    * @return the registry
    * @throws IllegalStateException if called before the proxy has started
    */
-  static StoliaPlaceholders get() {
-    return Objects.requireNonNull(Holder.instance, "Stolia Proxy has not started yet");
+  static StoriaPlaceholders get() {
+    return Objects.requireNonNull(Holder.instance, "Storia Proxy has not started yet");
   }
 
   /**
@@ -96,17 +96,17 @@ public interface StoliaPlaceholders {
    * Holds the running registry.
    */
   final class Holder {
-    private static volatile @Nullable StoliaPlaceholders instance;
+    private static volatile @Nullable StoriaPlaceholders instance;
 
     private Holder() {
     }
 
     /**
-     * Sets the running registry. Called by Stolia Proxy on startup.
+     * Sets the running registry. Called by Storia Proxy on startup.
      *
      * @param placeholders the registry
      */
-    public static void set(StoliaPlaceholders placeholders) {
+    public static void set(StoriaPlaceholders placeholders) {
       instance = placeholders;
     }
   }

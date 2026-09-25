@@ -1,22 +1,22 @@
 <div align=center>
-    <h1>Stolia Proxy</h1>
-    <p>A <a href="https://github.com/PaperMC/Velocity">Velocity</a> fork for the <a href="https://github.com/AKSHRK-Dev/Stolia">Stolia</a> server family,
+    <h1>Storia Proxy</h1>
+    <p>A <a href="https://github.com/PaperMC/Velocity">Velocity</a> fork for the <a href="https://github.com/AKSHRK-Dev/Storia">Storia</a> server family,
     with 50 built-in placeholders for the MOTD, tab list and messages, and a placeholder API for plugins.</p>
 </div>
 
 ## Features
 
 - Everything Velocity does (all Velocity plugins work).
-- **50 placeholders** (`{online}`, `{player_ping}`, `{status_lobby}`, ...) usable anywhere Stolia Proxy shows text,
+- **50 placeholders** (`{online}`, `{player_ping}`, `{status_lobby}`, ...) usable anywhere Storia Proxy shows text,
   with [MiniMessage](https://docs.advntr.dev/minimessage/format) formatting.
 - **Server list MOTD**, **tab list header/footer** (refreshed every second) and **join / leave / server switch
-  messages**, all configured in `stolia-proxy.toml`.
+  messages**, all configured in `storia-proxy.toml`.
 - Backend servers are pinged in the background, so `{status_<server>}`, `{motd_<server>}` and friends never
   slow anything down.
-- `/stoliaproxy placeholders` lists every placeholder with its current value, `/stoliaproxy parse <text>` previews a
-  line, `/stoliaproxy reload` reloads the config (permission `stoliaproxy.admin`).
+- `/storiaproxy placeholders` lists every placeholder with its current value, `/storiaproxy parse <text>` previews a
+  line, `/storiaproxy reload` reloads the config (permission `storiaproxy.admin`).
 
-## Configuration (`stolia-proxy.toml`)
+## Configuration (`storia-proxy.toml`)
 
 Created on first start:
 
@@ -112,27 +112,27 @@ Messages also have `{previous_server}` for server switches. Unknown placeholders
 
 ## Placeholder API for plugins
 
-Depend on the Stolia Proxy API (the Velocity API plus `dev.stolia.proxy.api`):
+Depend on the Storia Proxy API (the Velocity API plus `dev.storia.proxy.api`):
 
 ```java
-StoliaPlaceholders placeholders = StoliaPlaceholders.get();
+StoriaPlaceholders placeholders = StoriaPlaceholders.get();
 placeholders.register("coins", player -> player == null ? "0" : String.valueOf(coins(player)));
 placeholders.registerPrefix("team_", (player, team) -> String.valueOf(teamSize(team)));   // {team_red}
 Component line = placeholders.render("<gold>{coins} coins</gold> on {player_server}", player);
 ```
 
-Registered placeholders work in `stolia-proxy.toml` too.
+Registered placeholders work in `storia-proxy.toml` too.
 
 ## Building
 
 ```sh
 ./gradlew :velocity-proxy:shadowJar
-# -> proxy/build/libs/stolia-proxy-<version>.jar
+# -> proxy/build/libs/storia-proxy-<version>.jar
 ```
 
 ## License
 
-Stolia Proxy is a fork of [Velocity](https://github.com/PaperMC/Velocity) and keeps its licenses: the proxy is
+Storia Proxy is a fork of [Velocity](https://github.com/PaperMC/Velocity) and keeps its licenses: the proxy is
 GPLv3 and the API is MIT (see `LICENSE` and `api/LICENSE`). The original README is in
 [VELOCITY_README.md](./VELOCITY_README.md).
 
