@@ -16,6 +16,8 @@ application {
 tasks {
     withType<Checkstyle> {
         exclude("**/com/velocitypowered/proxy/protocol/packet/**")
+        // Storia's cluster protocol is copied from the Storia server (Storia's code style); keep the copies in sync.
+        exclude("**/dev/storia/**")
     }
 
     jar {

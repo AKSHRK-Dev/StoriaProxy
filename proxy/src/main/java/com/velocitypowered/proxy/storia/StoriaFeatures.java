@@ -99,6 +99,13 @@ public final class StoriaFeatures {
       [server-status]
       # How often backend servers are pinged for {status_<server>}, {motd_<server>} and friends.
       refresh-seconds = 10
+
+      [cluster]
+      # Storia Cluster (in development): route players between Storia nodes that share one world.
+      # Backend server names in velocity.toml must match the nodes' cluster.node-name. Needs a restart.
+      enabled = false
+      coordinator = "127.0.0.1:25590"
+      secret = ""
       """;
 
   private final VelocityServer server;
@@ -109,6 +116,7 @@ public final class StoriaFeatures {
   private volatile Settings settings;
   private @Nullable ScheduledTask tabTask;
   private @Nullable ScheduledTask statusTask;
+  private @Nullable StoriaCluster cluster;
 
   private record Settings(boolean motd, List<String> motdLines, int maxPlayers,
                           boolean tablist, long tabInterval, List<String> header, List<String> footer,
@@ -126,9 +134,28 @@ public final class StoriaFeatures {
     this.placeholders = new PlaceholderRegistry(server, this.status, this.loginTimes);
     StoriaPlaceholders.Holder.set(this.placeholders);
     this.settings = this.load();
+    this.cluster = this.startCluster();
     server.getEventManager().register(VelocityVirtualPlugin.INSTANCE, this);
     this.registerCommand();
     this.schedule();
+  }
+
+  private @Nullable StoriaCluster startCluster() {
+    try (CommentedFileConfig config = CommentedFileConfig.builder(this.file).build()) {
+      config.load();
+      if (!config.getOrElse("cluster.enabled", false)) {
+        return null;
+      }
+      final String secret = config.getOrElse("cluster.secret", "");
+      if (secret.length() < 8) {
+        LOGGER.error("cluster.enabled is true in {}, but cluster.secret is shorter than 8 characters", this.file);
+        return null;
+      }
+      return new StoriaCluster(this.server, config.getOrElse("cluster.coordinator", "127.0.0.1:25590"), secret);
+    } catch (final RuntimeException ex) {
+      LOGGER.error("Could not start the Storia Cluster connection", ex);
+      return null;
+    }
   }
 
   private Settings load() {
@@ -260,7 +287,7 @@ public final class StoriaFeatures {
     final LiteralArgumentBuilder<CommandSource> root = BrigadierCommand.literalArgumentBuilder("storiaproxy")
         .requires(source -> source.hasPermission("storiaproxy.admin"))
         .executes(ctx -> {
-          ctx.getSource().sendMessage(Component.text("/storiaproxy placeholders | parse <text> | reload", NamedTextColor.YELLOW));
+          ctx.getSource().sendMessage(Component.text("/storiaproxy placeholders | parse <text> | reload | cluster", NamedTextColor.YELLOW));
           return 1;
         })
         .then(BrigadierCommand.literalArgumentBuilder("placeholders").executes(ctx -> {
@@ -284,6 +311,15 @@ public final class StoriaFeatures {
               ctx.getSource().sendMessage(this.placeholders.render(StringArgumentType.getString(ctx, "text"), player));
               return 1;
             })))
+        .then(BrigadierCommand.literalArgumentBuilder("cluster").executes(ctx -> {
+          final StoriaCluster current = this.cluster;
+          if (current == null) {
+            ctx.getSource().sendMessage(Component.text("Storia Cluster is off ([cluster] in storia-proxy.toml).", NamedTextColor.YELLOW));
+          } else {
+            current.status().forEach(line -> ctx.getSource().sendMessage(Component.text(line, NamedTextColor.WHITE)));
+          }
+          return 1;
+        }))
         .then(BrigadierCommand.literalArgumentBuilder("reload").executes(ctx -> {
           this.settings = this.load();
           this.schedule();
