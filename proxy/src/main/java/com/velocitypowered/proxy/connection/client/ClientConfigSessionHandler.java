@@ -175,6 +175,7 @@ public class ClientConfigSessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(KnownPacksPacket packet) {
+    player.storiaKnownPacks(packet); // Storia - cluster: answer later node switches the same way
     callConfigurationEvent().thenRun(() -> {
       VelocityServerConnection targetServer =
           player.getConnectionInFlightOrConnectedServer();

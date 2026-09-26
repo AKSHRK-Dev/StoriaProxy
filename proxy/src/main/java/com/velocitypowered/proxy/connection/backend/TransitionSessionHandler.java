@@ -93,6 +93,40 @@ public class TransitionSessionHandler implements MinecraftSessionHandler {
     final RegisteredServer previousServer = serverConn.getPreviousServer().orElse(null);
     final ConnectedPlayer player = serverConn.getPlayer();
     final VelocityServerConnection existingConnection = player.getConnectedServer();
+    // Storia start - cluster: seamless switch between nodes of one world, no respawn
+    if (serverConn.isStoriaSeamless() && player.getConnection().getActiveSessionHandler() instanceof ClientPlaySessionHandler playHandler) {
+      final int[] oldEntities = existingConnection == null ? new int[0] : existingConnection.storiaEntities().toIntArray();
+      if (existingConnection != null) {
+        player.setConnectedServer(null);
+        existingConnection.disconnect();
+      }
+      smc.setAutoReading(false);
+      server.getEventManager()
+          .fire(new ServerConnectedEvent(player, serverConn.getServer(), previousServer))
+          .thenRunAsync(() -> {
+            if (!serverConn.isActive()) {
+              serverConn.disconnect();
+              return;
+            }
+            playHandler.handleStoriaSeamlessJoin(packet, serverConn, oldEntities);
+            smc.setActiveSessionHandler(StateRegistry.PLAY, new BackendPlaySessionHandler(server, serverConn));
+            player.setConnectedServer(serverConn);
+            smc.setAutoReading(true);
+            if (smc.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_21_4)) {
+              // the client does not load a new level, so tell the node it is ready right away
+              smc.write(com.velocitypowered.proxy.protocol.packet.ServerboundPlayerLoadedPacket.INSTANCE);
+            }
+            server.getEventManager().fireAndForget(new ServerPostConnectEvent(player, previousServer));
+            resultFuture.complete(ConnectionRequestResults.successful(serverConn.getServer()));
+          }, smc.eventLoop()).exceptionally(exc -> {
+            logger.error("Unable to switch {} seamlessly to {}", player.getUsername(), serverConn.getServerInfo().getName(), exc);
+            player.disconnect(ConnectionMessages.INTERNAL_SERVER_CONNECTION_ERROR);
+            resultFuture.completeExceptionally(exc);
+            return null;
+          });
+      return true;
+    }
+    // Storia end - cluster
 
     if (existingConnection != null) {
       // Shut down the existing server connection.

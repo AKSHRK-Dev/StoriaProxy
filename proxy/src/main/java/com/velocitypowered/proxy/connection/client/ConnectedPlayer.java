@@ -90,6 +90,7 @@ import com.velocitypowered.proxy.protocol.packet.chat.builder.ChatBuilderFactory
 import com.velocitypowered.proxy.protocol.packet.chat.builder.ChatBuilderV2;
 import com.velocitypowered.proxy.protocol.packet.chat.legacy.LegacyChatPacket;
 import com.velocitypowered.proxy.protocol.packet.config.ClientboundServerLinksPacket;
+import com.velocitypowered.proxy.protocol.packet.config.KnownPacksPacket;
 import com.velocitypowered.proxy.protocol.packet.config.StartUpdatePacket;
 import com.velocitypowered.proxy.protocol.packet.title.GenericTitlePacket;
 import com.velocitypowered.proxy.protocol.util.ByteBufDataOutput;
@@ -1350,6 +1351,32 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
     return false;
   }
 
+  // Storia start - cluster: seamless switching
+  private volatile @Nullable RegisteredServer storiaSeamlessTarget;
+  private volatile @Nullable KnownPacksPacket storiaKnownPacks;
+
+  /**
+   * Moves the player to another Storia Cluster node that shares the same world, without a loading screen.
+   * Falls back to a normal switch for client versions whose packet ids Storia Proxy does not know.
+   *
+   * @param target the node's server
+   */
+  public void storiaMoveSeamlessly(final RegisteredServer target) {
+    if (com.velocitypowered.proxy.storia.StoriaCluster.supportsSeamless(this.getProtocolVersion())) {
+      this.storiaSeamlessTarget = target;
+    }
+    this.createConnectionRequest(target).fireAndForget();
+  }
+
+  public @Nullable KnownPacksPacket storiaKnownPacks() {
+    return this.storiaKnownPacks;
+  }
+
+  public void storiaKnownPacks(final KnownPacksPacket packet) {
+    this.storiaKnownPacks = packet;
+  }
+  // Storia end - cluster: seamless switching
+
   /**
    * Switches the connection to the client into config state.
    */
@@ -1482,6 +1509,12 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
           VelocityRegisteredServer vrs = (VelocityRegisteredServer) realDestination;
           VelocityServerConnection con =
               new VelocityServerConnection(vrs, previousServer, ConnectedPlayer.this, server);
+          // Storia start - cluster: seamless switching
+          if (storiaSeamlessTarget != null && storiaSeamlessTarget.equals(realDestination)) {
+            con.setStoriaSeamless(true);
+          }
+          storiaSeamlessTarget = null;
+          // Storia end - cluster: seamless switching
           connectionInFlight = con;
 
           return con.connect().whenCompleteAsync((result, exception) -> {

@@ -19,13 +19,18 @@ package com.velocitypowered.proxy.storia;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.proxy.VelocityServer;
+import com.velocitypowered.proxy.connection.backend.VelocityServerConnection;
+import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import com.velocitypowered.proxy.plugin.virtual.VelocityVirtualPlugin;
+import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import dev.storia.cluster.protocol.ClusterProtocol;
 import dev.storia.offload.protocol.Messages;
 import dev.storia.offload.protocol.SecureChannel;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -51,6 +56,63 @@ public final class StoriaCluster {
 
   private static final Logger LOGGER = LogManager.getLogger(StoriaCluster.class);
 
+  /** Set when a cluster connection is configured; entity tracking only runs then. */
+  private static volatile boolean active;
+
+  /** Clientbound play packet ids needed for seamless switching, per client version. */
+  private static final int ADD_ENTITY = 0x01;
+  private static final int REMOVE_ENTITIES_26 = 0x4D;
+
+  /**
+   * Whether seamless switching knows the packet ids of this client version. Verified against Minecraft 26.2's
+   * packet order and Velocity's mappings for 26.1 and 26.2; other versions use a normal switch.
+   *
+   * @param version the client version
+   * @return true if supported
+   */
+  public static boolean supportsSeamless(final ProtocolVersion version) {
+    return version == ProtocolVersion.MINECRAFT_26_1 || version == ProtocolVersion.MINECRAFT_26_2;
+  }
+
+  /**
+   * The clientbound "remove entities" packet id.
+   *
+   * @param version the client version
+   * @return the packet id
+   */
+  public static int removeEntitiesPacketId(final ProtocolVersion version) {
+    return REMOVE_ENTITIES_26;
+  }
+
+  /**
+   * Remembers which entities a node has spawned on the client, so they can be removed on a seamless switch.
+   * Only reads the packet; never changes it.
+   *
+   * @param connection the backend connection
+   * @param buf the raw packet (id first)
+   */
+  public static void trackEntities(final VelocityServerConnection connection, final ByteBuf buf) {
+    if (!active || !supportsSeamless(connection.getPlayer().getProtocolVersion())) {
+      return;
+    }
+    final int start = buf.readerIndex();
+    try {
+      final int id = ProtocolUtils.readVarInt(buf);
+      if (id == ADD_ENTITY) {
+        connection.storiaEntities().add(ProtocolUtils.readVarInt(buf));
+      } else if (id == REMOVE_ENTITIES_26) {
+        final int count = ProtocolUtils.readVarInt(buf);
+        for (int i = 0; i < count && i < 65536; ++i) {
+          connection.storiaEntities().remove(ProtocolUtils.readVarInt(buf));
+        }
+      }
+    } catch (final RuntimeException ignored) {
+      // not what we expected; leave it alone
+    } finally {
+      buf.readerIndex(start);
+    }
+  }
+
   private final VelocityServer server;
   private final String host;
   private final int port;
@@ -74,6 +136,7 @@ public final class StoriaCluster {
     this.host = colon < 0 ? coordinator : coordinator.substring(0, colon);
     this.port = colon < 0 ? 25590 : Integer.parseInt(coordinator.substring(colon + 1));
     this.secret = secret;
+    active = true;
     server.getEventManager().register(VelocityVirtualPlugin.INSTANCE, this);
     final Thread connector = new Thread(this::connectLoop, "Storia Cluster");
     connector.setDaemon(true);
@@ -146,7 +209,7 @@ public final class StoriaCluster {
       return;
     }
     this.moves.incrementAndGet();
-    player.get().createConnectionRequest(target.get()).fireAndForget();
+    ((ConnectedPlayer) player.get()).storiaMoveSeamlessly(target.get());
   }
 
   private ClusterProtocol.Response request(final byte op, final byte[] body, final long timeoutMillis) throws Exception {

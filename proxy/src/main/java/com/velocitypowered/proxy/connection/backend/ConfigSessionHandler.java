@@ -124,26 +124,52 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
     return true;
   }
 
+  // Storia start - cluster: in a seamless switch the client stays in play and never sees this configuration;
+  // the proxy answers the node itself (same world, same registries, so nothing needs to reach the client)
+  @Override
+  public boolean handle(com.velocitypowered.proxy.protocol.packet.config.KnownPacksPacket packet) {
+    if (!this.seamless()) {
+      return false;
+    }
+    final com.velocitypowered.proxy.protocol.packet.config.KnownPacksPacket answer = serverConn.getPlayer().storiaKnownPacks();
+    serverConn.ensureConnected().write(answer != null ? answer : packet);
+    return true;
+  }
+  // Storia end - cluster
+
   @Override
   public boolean handle(TagsUpdatePacket packet) {
+    if (this.seamless()) {
+      return true; // Storia - cluster
+    }
     serverConn.getPlayer().getConnection().write(packet);
     return true;
   }
 
   @Override
   public boolean handle(ClientboundCustomReportDetailsPacket packet) {
+    if (this.seamless()) {
+      return true; // Storia - cluster
+    }
     serverConn.getPlayer().getConnection().write(packet);
     return true;
   }
 
   @Override
   public boolean handle(ClientboundServerLinksPacket packet) {
+    if (this.seamless()) {
+      return true; // Storia - cluster
+    }
     serverConn.getPlayer().getConnection().write(packet);
     return true;
   }
 
   @Override
   public boolean handle(KeepAlivePacket packet) {
+    if (this.seamless()) {
+      serverConn.ensureConnected().write(packet); // Storia - cluster: answer for the client
+      return true;
+    }
     serverConn.getPendingPings().put(packet.getRandomId(), System.nanoTime());
     serverConn.getPlayer().getConnection().write(packet);
     return true;
@@ -151,6 +177,14 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(final ResourcePackRequestPacket packet) {
+    if (this.seamless()) {
+      // Storia - cluster: the client already has what the network uses; confirm without asking it
+      final MinecraftConnection smc = serverConn.ensureConnected();
+      smc.write(new ResourcePackResponsePacket(packet.getId(), packet.getHash(), PlayerResourcePackStatusEvent.Status.ACCEPTED));
+      smc.write(new ResourcePackResponsePacket(packet.getId(), packet.getHash(), PlayerResourcePackStatusEvent.Status.DOWNLOADED));
+      smc.write(new ResourcePackResponsePacket(packet.getId(), packet.getHash(), PlayerResourcePackStatusEvent.Status.SUCCESSFUL));
+      return true;
+    }
     final MinecraftConnection playerConnection = serverConn.getPlayer().getConnection();
 
     final ResourcePackInfo resourcePackInfo = packet.toServerPromptedPack();
@@ -234,6 +268,21 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
   @Override
   public boolean handle(FinishedUpdatePacket packet) {
     final MinecraftConnection smc = serverConn.ensureConnected();
+    // Storia start - cluster: finish the node's configuration without the client
+    if (this.seamless()) {
+      smc.getChannel().pipeline().get(MinecraftVarintFrameDecoder.class).setState(StateRegistry.PLAY);
+      smc.getChannel().pipeline().get(MinecraftDecoder.class).setState(StateRegistry.PLAY);
+      final String brand = serverConn.getPlayer().getClientBrand();
+      if (brand != null) {
+        final io.netty.buffer.ByteBuf buf = Unpooled.buffer();
+        com.velocitypowered.proxy.protocol.ProtocolUtils.writeString(buf, brand);
+        smc.write(new PluginMessagePacket("minecraft:brand", buf));
+      }
+      smc.write(FinishedUpdatePacket.INSTANCE);
+      smc.setActiveSessionHandler(StateRegistry.PLAY, new TransitionSessionHandler(server, serverConn, resultFuture));
+      return true;
+    }
+    // Storia end - cluster
     final ConnectedPlayer player = serverConn.getPlayer();
     final ClientConfigSessionHandler configHandler = (ClientConfigSessionHandler) player.getConnection().getActiveSessionHandler();
 
@@ -272,6 +321,9 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(PluginMessagePacket packet) {
+    if (this.seamless()) {
+      return true; // Storia - cluster
+    }
     if (PluginMessageUtil.isMcBrand(packet)) {
       serverConn.getPlayer().getConnection().write(
           PluginMessageUtil.rewriteMinecraftBrand(packet, server.getVersion(),
@@ -306,6 +358,9 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(RegistrySyncPacket packet) {
+    if (this.seamless()) {
+      return true; // Storia - cluster
+    }
     serverConn.getPlayer().getConnection().write(packet.retain());
     return true;
   }
@@ -370,6 +425,10 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
 
   @Override
   public boolean handle(CodeOfConductPacket packet) {
+    if (this.seamless()) {
+      logger.warn("{} sent a code of conduct during a seamless Storia Cluster switch; it was not shown again", serverConn.getServerInfo().getName());
+      return true; // Storia - cluster
+    }
     this.serverConn.getPlayer().getConnection().write(packet.retain());
     return true;
   }
@@ -382,6 +441,9 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
 
   @Override
   public void handleGeneric(MinecraftPacket packet) {
+    if (this.seamless()) {
+      return; // Storia - cluster
+    }
     serverConn.getPlayer().getConnection().write(packet);
   }
 
@@ -406,6 +468,11 @@ public class ConfigSessionHandler implements MinecraftSessionHandler {
         serverConn.getPlayer().getUsername(), cause);
     serverConn.getPlayer().disconnect(ConnectionMessages.INTERNAL_SERVER_CONNECTION_ERROR);
     resultFuture.completeExceptionally(cause);
+  }
+
+  // Storia - cluster: in a seamless switch the client never sees the node's configuration
+  private boolean seamless() {
+    return this.serverConn.isStoriaSeamless();
   }
 
   /**

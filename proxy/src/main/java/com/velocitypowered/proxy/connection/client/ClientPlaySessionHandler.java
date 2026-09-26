@@ -711,6 +711,43 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
     destination.completeJoin();
   }
 
+  // Storia start - cluster: seamless switch
+  /**
+   * Finishes a seamless Storia Cluster switch: the client keeps its level, its chunks and its own entity (the node
+   * gave the player the same entity id), so JoinGame is not sent. Entities from the old node are removed; the new
+   * node spawns its own.
+   *
+   * @param joinGame the new node's join packet (not forwarded)
+   * @param destination the new node's connection
+   * @param oldEntities entities the old node had spawned on the client
+   */
+  public void handleStoriaSeamlessJoin(JoinGamePacket joinGame, VelocityServerConnection destination, int[] oldEntities) {
+    final MinecraftConnection serverMc = destination.ensureConnected();
+    if (oldEntities.length > 0) {
+      final io.netty.buffer.ByteBuf remove = io.netty.buffer.Unpooled.buffer();
+      com.velocitypowered.proxy.protocol.ProtocolUtils.writeVarInt(remove,
+          com.velocitypowered.proxy.storia.StoriaCluster.removeEntitiesPacketId(player.getProtocolVersion()));
+      com.velocitypowered.proxy.protocol.ProtocolUtils.writeVarInt(remove, oldEntities.length);
+      for (final int id : oldEntities) {
+        com.velocitypowered.proxy.protocol.ProtocolUtils.writeVarInt(remove, id);
+      }
+      player.getConnection().delayedWrite(remove);
+    }
+    player.getTabList().clearAll();
+    destination.setEntityId(joinGame.getEntityId());
+    final Collection<ChannelIdentifier> channels = server.getChannelRegistrar().getChannelsForProtocol(serverMc.getProtocolVersion());
+    if (!channels.isEmpty()) {
+      serverMc.delayedWrite(constructChannelsPacket(serverMc.getProtocolVersion(), channels));
+    }
+    if (!player.getClientsideChannels().isEmpty()) {
+      serverMc.delayedWrite(constructChannelsPacket(serverMc.getProtocolVersion(), player.getClientsideChannels()));
+    }
+    player.getConnection().flush();
+    serverMc.flush();
+    destination.completeJoin();
+  }
+  // Storia end - cluster
+
   private void doFastClientServerSwitch(JoinGamePacket joinGame) {
     // In order to handle switching to another server, you will need to send two packets:
     //

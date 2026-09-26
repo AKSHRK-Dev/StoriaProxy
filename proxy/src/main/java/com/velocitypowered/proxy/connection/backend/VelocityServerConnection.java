@@ -73,6 +73,32 @@ public class VelocityServerConnection implements MinecraftConnectionAssociation,
   private BackendConnectionPhase connectionPhase = BackendConnectionPhases.UNKNOWN;
   private final Map<Long, Long> pendingPings = new HashMap<>();
   private @MonotonicNonNull Integer entityId;
+  // Storia start - cluster: seamless switching
+  private boolean storiaSeamless;
+  private final it.unimi.dsi.fastutil.ints.IntOpenHashSet storiaEntities = new it.unimi.dsi.fastutil.ints.IntOpenHashSet();
+
+  /**
+   * Whether this connection replaces the current one without a respawn (a Storia Cluster move).
+   *
+   * @return true for a seamless switch
+   */
+  public boolean isStoriaSeamless() {
+    return this.storiaSeamless;
+  }
+
+  public void setStoriaSeamless(final boolean seamless) {
+    this.storiaSeamless = seamless;
+  }
+
+  /**
+   * Entities this backend has spawned on the client, removed there on a seamless switch.
+   *
+   * @return the entity ids (only touched on the backend's event loop)
+   */
+  public it.unimi.dsi.fastutil.ints.IntOpenHashSet storiaEntities() {
+    return this.storiaEntities;
+  }
+  // Storia end - cluster: seamless switching
 
   /**
    * Initializes a new server connection.

@@ -475,6 +475,7 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public void handleUnknown(ByteBuf buf) {
+    com.velocitypowered.proxy.storia.StoriaCluster.trackEntities(serverConn, buf); // Storia - cluster
     boolean huge = buf.readableBytes() > LARGE_PACKET_THRESHOLD;
     playerConnection.delayedWrite(buf.retain());
     if (huge || ++packetsFlushed >= MAXIMUM_PACKETS_TO_FLUSH) {

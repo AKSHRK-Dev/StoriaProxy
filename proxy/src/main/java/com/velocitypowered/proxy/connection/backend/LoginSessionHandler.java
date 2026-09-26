@@ -163,7 +163,9 @@ public class LoginSessionHandler implements MinecraftSessionHandler {
       if (player.getClientSettingsPacket() != null) {
         smc.write(player.getClientSettingsPacket());
       }
-      if (player.getConnection().getActiveSessionHandler() instanceof ClientPlaySessionHandler clientPlaySessionHandler) {
+      if (serverConn.isStoriaSeamless() && player.getConnection().getActiveSessionHandler() instanceof ClientPlaySessionHandler) {
+        // Storia - cluster: the client stays in play; the proxy configures the new node on its own
+      } else if (player.getConnection().getActiveSessionHandler() instanceof ClientPlaySessionHandler clientPlaySessionHandler) {
         smc.setAutoReading(false);
         clientPlaySessionHandler.doSwitch().thenRunAsync(() -> smc.setAutoReading(true), smc.eventLoop());
       } else {
