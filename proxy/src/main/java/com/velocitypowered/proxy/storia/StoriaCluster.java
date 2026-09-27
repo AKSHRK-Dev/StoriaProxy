@@ -187,8 +187,13 @@ public final class StoriaCluster {
       } else if (type == ClusterProtocol.PUSH) {
         final ClusterProtocol.Push push = ClusterProtocol.readPush(message);
         if (push.op() == ClusterProtocol.PUSH_MOVE) {
-          final String[] move = ClusterProtocol.readMove(push.body());
-          this.move(UUID.fromString(move[0]), move[1]);
+          try {
+            final String[] move = ClusterProtocol.readMove(push.body());
+            this.move(UUID.fromString(move[0]), move[1]);
+          } catch (final RuntimeException ex) {
+            // one bad move must not end the connection to the coordinator
+            LOGGER.warn("Storia Cluster: could not carry out a move: {}", ex.toString());
+          }
         }
       }
     }
