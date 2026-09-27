@@ -28,8 +28,8 @@ import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import com.velocitypowered.proxy.plugin.virtual.VelocityVirtualPlugin;
 import com.velocitypowered.proxy.protocol.ProtocolUtils;
 import dev.storia.cluster.protocol.ClusterProtocol;
-import dev.storia.offload.protocol.Messages;
-import dev.storia.offload.protocol.SecureChannel;
+import dev.storia.net.Handshake;
+import dev.storia.net.SecureChannel;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -150,8 +150,8 @@ public final class StoriaCluster {
         socket.connect(new InetSocketAddress(this.host, this.port), 5000);
         socket.setTcpNoDelay(true);
         final SecureChannel channel = SecureChannel.initiate(socket, this.secret, true);
-        channel.send(Messages.hello(new Messages.Hello(ClusterProtocol.ROLE_PROXY, 0, Map.of("proxy", "storia-proxy"))));
-        final Messages.Welcome welcome = Messages.readWelcome(channel.receive());
+        channel.send(Handshake.hello(new Handshake.Hello(ClusterProtocol.ROLE_PROXY, 0, Map.of("proxy", "storia-proxy"))));
+        final Handshake.Welcome welcome = Handshake.readWelcome(channel.receive());
         if (!welcome.ok()) {
           throw new IOException(welcome.message());
         }
