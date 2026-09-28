@@ -40,7 +40,10 @@ public class Metrics {
 
   private MetricsBase metricsBase;
 
-  private Metrics(Logger logger, int serviceId, boolean defaultEnabled) {
+  private final VelocityServer server;
+
+  private Metrics(Logger logger, VelocityServer server, int serviceId, boolean defaultEnabled) {
+    this.server = server;
     File configFile = Path.of("plugins", "bStats", "config.txt").toFile();
     MetricsConfig config;
     try {
@@ -51,12 +54,12 @@ public class Metrics {
     }
 
     metricsBase = new MetricsBase(
-        "server-implementation",
+        "velocity", // Storia - Storia Proxy's own bStats page
         config.getServerUUID(),
         serviceId,
         config.isEnabled(),
         this::appendPlatformData,
-        jsonObjectBuilder -> { /* NOP */ },
+        builder -> builder.appendField("pluginVersion", server.getVersion().getVersion()),
         null,
         () -> true,
         logger::warn,
@@ -91,6 +94,15 @@ public class Metrics {
   }
 
   private void appendPlatformData(JsonObjectBuilder builder) {
+    // Storia start - the fields bStats expects from Velocity
+    builder.appendField("playerAmount", server.getPlayerCount());
+    builder.appendField("managedServers", server.getAllServers().size());
+    builder.appendField("onlineMode", server.getConfiguration().isOnlineMode() ? 1 : 0);
+    builder.appendField("velocityVersionVersion", server.getVersion().getVersion());
+    builder.appendField("velocityVersionName", server.getVersion().getName());
+    builder.appendField("velocityVersionVendor", server.getVersion().getVendor());
+    builder.appendField("javaVersion", System.getProperty("java.version"));
+    // Storia end
     builder.appendField("osName", System.getProperty("os.name"));
     builder.appendField("osArch", System.getProperty("os.arch"));
     builder.appendField("osVersion", System.getProperty("os.version"));
@@ -102,7 +114,7 @@ public class Metrics {
     private static final Logger logger = LogManager.getLogger(Metrics.class);
 
     static void startMetrics(VelocityServer server, VelocityConfiguration.Metrics metricsConfig) {
-      Metrics metrics = new Metrics(logger, 4752, metricsConfig.isEnabled());
+      Metrics metrics = new Metrics(logger, server, 34365, metricsConfig.isEnabled()); // Storia - https://bstats.org/plugin/velocity/StoriaProxy/34365
 
       metrics.addCustomChart(
           new SingleLineChart("players", server::getPlayerCount)
