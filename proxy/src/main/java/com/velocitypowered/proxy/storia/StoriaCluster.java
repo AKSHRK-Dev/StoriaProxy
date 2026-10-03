@@ -114,8 +114,9 @@ public final class StoriaCluster {
   }
 
   private final VelocityServer server;
-  private final String host;
-  private final int port;
+  /** The relays to try, in order: the active relay and its standby (host, port). */
+  private final List<Map.Entry<String, Integer>> coordinators = new ArrayList<>();
+  private volatile String connectedTo = "";
   private final String secret;
   private final AtomicLong ids = new AtomicLong();
   private final Map<Long, CompletableFuture<ClusterProtocol.Response>> pending = new ConcurrentHashMap<>();
@@ -132,9 +133,18 @@ public final class StoriaCluster {
    */
   public StoriaCluster(final VelocityServer server, final String coordinator, final String secret) {
     this.server = server;
-    final int colon = coordinator.lastIndexOf(':');
-    this.host = colon < 0 ? coordinator : coordinator.substring(0, colon);
-    this.port = colon < 0 ? 25590 : Integer.parseInt(coordinator.substring(colon + 1));
+    for (final String address : coordinator.split(",")) {
+      final String trimmed = address.trim();
+      if (trimmed.isEmpty()) {
+        continue;
+      }
+      final int colon = trimmed.lastIndexOf(':');
+      this.coordinators.add(Map.entry(colon < 0 ? trimmed : trimmed.substring(0, colon),
+          colon < 0 ? 25590 : Integer.parseInt(trimmed.substring(colon + 1))));
+    }
+    if (this.coordinators.isEmpty()) {
+      throw new IllegalArgumentException("[cluster] coordinator is empty");
+    }
     this.secret = secret;
     active = true;
     server.getEventManager().register(VelocityVirtualPlugin.INSTANCE, this);
@@ -145,23 +155,29 @@ public final class StoriaCluster {
 
   private void connectLoop() {
     while (!this.closed) {
-      try {
-        final Socket socket = new Socket();
-        socket.connect(new InetSocketAddress(this.host, this.port), 5000);
-        socket.setTcpNoDelay(true);
-        final SecureChannel channel = SecureChannel.initiate(socket, this.secret, true);
-        channel.send(Handshake.hello(new Handshake.Hello(ClusterProtocol.ROLE_PROXY, 0, Map.of("proxy", "storia-proxy"))));
-        final Handshake.Welcome welcome = Handshake.readWelcome(channel.receive());
-        if (!welcome.ok()) {
-          throw new IOException(welcome.message());
+      SecureChannel channel = null;
+      final List<String> failures = new ArrayList<>();
+      for (final Map.Entry<String, Integer> address : this.coordinators) {
+        try {
+          channel = this.open(address.getKey(), address.getValue());
+          this.connectedTo = address.getKey() + ":" + address.getValue();
+          break;
+        } catch (final IOException ex) {
+          failures.add(address.getKey() + ":" + address.getValue() + " (" + ex.getMessage() + ")");
         }
+      }
+      if (channel != null) {
         this.channel = channel;
-        LOGGER.info("Connected to the Storia Cluster coordinator at {}:{}", this.host, this.port);
-        this.readLoop(channel);
-      } catch (final IOException ex) {
-        if (!this.closed) {
-          LOGGER.warn("Storia Cluster coordinator at {}:{} unavailable: {}", this.host, this.port, ex.getMessage());
+        LOGGER.info("Connected to the Storia Cluster coordinator at {}", this.connectedTo);
+        try {
+          this.readLoop(channel);
+        } catch (final IOException ex) {
+          if (!this.closed) {
+            LOGGER.warn("Lost the Storia Cluster coordinator at {}: {}", this.connectedTo, ex.getMessage());
+          }
         }
+      } else if (!this.closed) {
+        LOGGER.warn("No Storia Cluster coordinator available: {}", String.join(", ", failures));
       }
       this.channel = null;
       this.pending.values().forEach(future -> future.completeExceptionally(new IOException("disconnected")));
@@ -172,6 +188,21 @@ public final class StoriaCluster {
         return;
       }
     }
+  }
+
+  /** Connects to one relay; a standby refuses, and the next relay in the list is tried. */
+  private SecureChannel open(final String host, final int port) throws IOException {
+    final Socket socket = new Socket();
+    socket.connect(new InetSocketAddress(host, port), 5000);
+    socket.setTcpNoDelay(true);
+    final SecureChannel channel = SecureChannel.initiate(socket, this.secret, true);
+    channel.send(Handshake.hello(new Handshake.Hello(ClusterProtocol.ROLE_PROXY, 0, Map.of("proxy", "storia-proxy"))));
+    final Handshake.Welcome welcome = Handshake.readWelcome(channel.receive());
+    if (!welcome.ok()) {
+      channel.close();
+      throw new IOException(welcome.message());
+    }
+    return channel;
   }
 
   private void readLoop(final SecureChannel channel) throws IOException {
@@ -259,7 +290,7 @@ public final class StoriaCluster {
    */
   public List<String> status() {
     final List<String> lines = new ArrayList<>();
-    lines.add("Storia Cluster coordinator " + this.host + ":" + this.port + (this.channel != null ? " (connected)" : " (DISCONNECTED)")
+    lines.add("Storia Cluster coordinator " + (this.channel != null ? this.connectedTo + " (connected)" : "(DISCONNECTED)")
         + ", " + this.moves.get() + " player move(s) done here");
     try {
       final ClusterProtocol.Response response = this.request(ClusterProtocol.OP_STATUS, new byte[0], 3000L);
